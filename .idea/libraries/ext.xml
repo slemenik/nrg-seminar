@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="ext">
+    <CLASSES>
+      <root url="file://$PROJECT_DIR$/libs/jaxrs-ri/ext" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="file://$PROJECT_DIR$/libs/jaxrs-ri/ext" />
+    </SOURCES>
+    <jarDirectory url="file://$PROJECT_DIR$/libs/jaxrs-ri/ext" recursive="false" />
+    <jarDirectory url="file://$PROJECT_DIR$/libs/jaxrs-ri/ext" recursive="false" type="SOURCES" />
+  </library>
+</component>

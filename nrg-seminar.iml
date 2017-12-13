@@ -11,5 +11,7 @@
     <orderEntry type="library" name="libs (2)" level="project" />
     <orderEntry type="library" name="lib" level="project" />
     <orderEntry type="library" name="ext (2)" level="project" />
+    <orderEntry type="library" name="las-jna-0.0.5" level="project" />
+    <orderEntry type="library" name="las-jna" level="project" />
   </component>
 </module>

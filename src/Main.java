@@ -1,5 +1,6 @@
 import com.github.mreutegg.laszip4j.LASPoint;
 import com.github.mreutegg.laszip4j.LASReader;
+import com.github.petvana.liblas.LasWriter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 
@@ -18,6 +19,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.PriorityQueue;
 
@@ -33,28 +35,25 @@ public class Main {
 
         System.out.println("Started...");
 
-        //download LIDAR file
-        //File file = createLidarFile(ARSO_LIDAR_URL);
-        File file = new File("C:\\Users\\Matej\\IdeaProjects\\nrg-seminar\\src\\GK_470_97.laz");
-        //calculate colors
+        File file = createLidarFile(ARSO_LIDAR_URL);
+        //File file = new File("C:\\Users\\Matej\\IdeaProjects\\nrg-seminar\\src\\GK_470_97.laz");
 
         String[] fileNameParams = FilenameUtils.removeExtension(file.getName()).split("_"); //GK_470_97
-//        BufferedImage image = getOrtoPhoto(Integer.parseInt(fileNameParams[1]),Integer.parseInt(fileNameParams[2]));//470,97
-//        //BufferedImage image = null;
+        int xThousand = Integer.parseInt(fileNameParams[1]);
+        int yThousand = Integer.parseInt(fileNameParams[2]);
+        BufferedImage image = getOrtoPhoto(xThousand,yThousand);//470,97
+
+//        BufferedImage image = null;
 //        try {
-//            //image = ImageIO.read(new File("C:\\Users\\Matej\\IdeaProjects\\nrg-seminar\\src\\saved.png"));
+//            image = ImageIO.read(new File("C:\\Users\\Matej\\IdeaProjects\\nrg-seminar\\src\\saved.png"));
 //        } catch (Exception e) {
 //            e.printStackTrace();
 //        }
 
-//        DataBufferInt buff = (DataBufferInt) image.getRaster().getDataBuffer();
-//        int[] pixels = buff.getData();
-//        System.out.println(image.getWidth());
-//        System.out.println(image.getHeight());
-//        System.out.println(pixels.length);
-        //System.out.println(image.getAlphaRaster());
-
-        //System.out.println((double)7012332/100);
+        DataBufferInt buff = (DataBufferInt) image.getRaster().getDataBuffer();
+        int[] pixels = buff.getData();
+        int height = image.getHeight();
+        int width = image.getWidth();
 
         LASReader lasReader = null;
         try {
@@ -62,35 +61,32 @@ public class Main {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        int i = 0;
+
         System.out.println("Reading points...");
         for (LASPoint p: lasReader.getPoints()) {
-            //byte b = p.getClassification();
-            i++;
-            if(i>3) {
-                findClosestPx(p.getX(), p.getY());
-                //System.out.print(p.getX() + ",");
-                //System.out.print(p.getY() + ",");
-                break;
-            }
-            if (i%1000000==0) System.out.println(i);
+            int[] pxCoordinates = findClosestPxCoordinates(p.getX(), p.getY(),  xThousand, yThousand);
+            int i = pxCoordinates[0]-(xThousand*1000);
+            int j = (height-1)-(pxCoordinates[1]-(yThousand*1000));//j index of image goes from top to bottom
 
+            int rgb = pixels[(j*width)+i]; //binary int value
+            Color color = new Color(rgb);
+            int[] rgbArray = new int[]{color.getRed(), color.getGreen(), color.getBlue()};
+
+            //System.out.println(rgbArray[0] + "," + rgbArray[1] + "," + rgbArray[2]);
 
         }
 
-//        System.out.println(i);
-        //calculate normals
-        //write to file
+        System.out.println("Finished.");
         System.exit(0);
 
     }
 
-    public static File createLidarFile(String URL){
+    private static File createLidarFile(String URL){
         File f = null;
         InputStream inputStream;
         try {
             Client client = ClientBuilder.newClient();
-            WebTarget resource = client.target(URI.create(ARSO_LIDAR_URL));
+            WebTarget resource = client.target(URI.create(URL));
             Invocation.Builder request = resource.request();
             request.accept(MediaType.APPLICATION_OCTET_STREAM);
 
@@ -113,7 +109,6 @@ public class Main {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
         return f;
     }
 
@@ -126,17 +121,11 @@ public class Main {
 
         Client client = ClientBuilder.newClient();
         Form form = new Form()
-                .param("bbox", "361771.9704999999,73918.74945126937,638968.9895000001,209948.85829478354")
+                .param("bbox", minX + ","+minY+","+maxX+","+maxY)
                 .param("format", "bmp")
                 .param("transparent", "false")
                 .param("f", "image")
-                .param("mapScale", "1000000");
-//        Form form = new Form()
-//                .param("bbox", minX + ","+minY+","+maxX+","+maxY)
-//                .param("format", "bmp")
-//                .param("transparent", "false")
-//                .param("f", "image")
-//                .param("size", ORTO_PHOTO_IMG_SIZE + "," + ORTO_PHOTO_IMG_SIZE);
+                .param("size", ORTO_PHOTO_IMG_SIZE + "," + ORTO_PHOTO_IMG_SIZE);
 
         System.out.print("Requesting from source: [" + ARSO_ORTOPHOTO_URL + "]");
         Response response = client.target(ARSO_ORTOPHOTO_URL).request().post(Entity.form(form));
@@ -144,35 +133,28 @@ public class Main {
         response.close();
         System.out.println("[DONE]");
 
-
         return image;
     }
 
-    private static void findClosestPx(int x, int y){//TODO - find why do we need ints? LASreader??
+    private static int[] findClosestPxCoordinates(int x, int y, int minX, int minY){//TODO - find if/why do we need ints? LASreader??
 
-        double _x = (double)x/100;
+        double _x = (double)x/100;//we get x without .00 decimal. why?
         double _y = (double)y/100;
-        findClosestPx(_x, _y);
-
-
-
+        return findClosestPxCoordinates(_x, _y,  minX,  minY);
     }
 
-    private static void findClosestPx(double x, double y){
+    private static int[] findClosestPxCoordinates(double x, double y, int minX, int minY){
 
-        //TODO check if always 4 pixels
-        double leftX = ((int)x/1000)*1000;
-        double rightX = leftX + 1000;
-        double bottomY = ((int)y/1000)*1000;
-        double upperY = bottomY + 1000;
+        double maxX = minX + (ORTO_PHOTO_IMG_SIZE-1);
+        double maxY = minY + (ORTO_PHOTO_IMG_SIZE-1);
 
         Point2D p = new Point2D.Double(x,y);
-        Point2D upperLeft = new Point2D.Double(leftX,upperY);
-        Point2D upperRight = new Point2D.Double(rightX,upperY);
-        Point2D bottomLeft = new Point2D.Double(leftX,bottomY);
-        Point2D bottomRight = new Point2D.Double(rightX,bottomY);
+        Point2D upperLeft = new Point2D.Double((int)x,(int)y+1);
+        Point2D upperRight = new Point2D.Double((int)x+1,(int)y+1);
+        Point2D bottomLeft = new Point2D.Double((int)x,(int)y);
+        Point2D bottomRight = new Point2D.Double((int)x+1,(int)y);
 
-        PriorityQueue<Point2D> queue = new PriorityQueue(new Comparator() {
+        PriorityQueue<Point2D> queue = new PriorityQueue<Point2D>(new Comparator() {
             @Override
             public int compare(Object o1, Object o2) {
                 Point2D p1 = (Point2D) o1;
@@ -186,13 +168,13 @@ public class Main {
             }
         });
 
-        queue.add(upperLeft);
-        queue.add(upperRight);
+        //if pixel is allowed, add to queue
         queue.add(bottomLeft);
-        queue.add(bottomRight);
+        if ((int)y+1 <= maxY) queue.add(upperLeft);
+        if ((int)x+1 <= maxX) queue.add(bottomRight);
+        if ((int)x+1 <= maxX && (int)y+1 <= maxY) queue.add(upperRight);
         Point2D closestPoint = queue.peek();
 
-
-
+        return new int[]{(int)closestPoint.getX(), (int)closestPoint.getY()};
     }
 }
